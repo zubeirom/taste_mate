@@ -5,11 +5,13 @@ import weaviate
 
 client = utils.connect_db()
 
+client.collections.delete(constants.RECIPE_TABLE_NAME)
+
 try: 
     recipes = client.collections.create(
         name = constants.RECIPE_TABLE_NAME,
-        vectorizer_config=wvc.config.Configure.Vectorizer.text2vec_openai(),
-        generative_config=wvc.config.Configure.Generative.openai(),
+        vectorizer_config=wvc.config.Configure.Vectorizer.text2vec_voyageai(),
+        generative_config=wvc.config.Configure.Generative.cohere(),
         properties=[
             wvc.config.Property(
                 name="recipe_id",

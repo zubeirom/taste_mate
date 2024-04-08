@@ -5,35 +5,55 @@ from weaviate.util import generate_uuid5
 import utils
 import constants
 
-df = pd.read_csv(RECIPES)
+def populate_list(object_list, df):
 
-client = utils.connect_db()
-recipeStore = client.collections.get(constants.RECIPE_TABLE_NAME)
+    for i, row in df.iterrows():
+        payload = {
+            "recipe_id": str(row["id"]),
+            "minutes": row["minutes"],
+            "name": row["name"],
+            "nutrition": row["nutrition"],
+            "steps": row["steps"],
+            "description": row["description"],
+        }
+    
+        # Insert payload into database
+        data_obj = wvc.data.DataObject(
+            properties=payload,
+            uuid=generate_uuid5(payload["recipe_id"])
+        )
+    
+        object_list.append(data_obj)
+    
+        if len(object_list) >= 3000:
+            return object_list
+    
 
-recipe_objects = list()
 
-for i, row in df.iterrows():
-    payload = {
-        "recipe_id": row["id"],
-        "minutes": row["minutes"],
-        "name": row["name"],
-        "nutrition": row["nutrition"],
-        "steps": row["steps"],
-        "description": row["description"],
-    }
+def execute():
+    df = pd.read_csv(RECIPES)
+    
+    client = utils.connect_db()
+    
+    recipeStore = client.collections.get(constants.RECIPE_TABLE_NAME)
+    
+    raw_list = populate_list([], df)
 
-    # Insert payload into database
-    data_obj = wvc.data.DataObject(
-        properties=payload,
-        uuid=generate_uuid5(payload["recipe_id"])
-    )
+    chunk_size = 300
 
-    recipe_objects.append(data_obj)
+    splitted_list = [raw_list[i:i+chunk_size] for i in range(0, len(raw_list), chunk_size)]
 
-# store recipes
-response = recipeStore.data.insert_many(recipe_objects)
+    recipe_objects = splitted_list[3]
 
-print(f"Insertion complete with {len(response.all_responses)} objects.")
-print(f"Insertion errors: {len(response.errors)}.")
+    print(f"Inserted {len(recipe_objects)} objects.")
 
-client.close()
+    # store recipes
+    response = recipeStore.data.insert_many(recipe_objects)
+
+    print(f"Insertion complete with {len(response.all_responses)} objects.")
+    print(f"Insertion errors: {len(response.errors)}.")
+
+    client.close()
+
+
+execute()
